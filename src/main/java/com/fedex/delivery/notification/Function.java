@@ -111,7 +111,7 @@ public class Function {
 		String messageTemplate = Files
 				.readString(Paths.get("src/main/java/com/fedex/delivery/notification/message_template.json"));
 
-		WelcomeMessage welcomeMessage = getWelcomeMessage(context);
+		WelcomeMessage welcomeMessage = getWelcomeMessage(lang, context);
 		String text1 = welcomeMessage.getWelcomeMessage().replace("{1}", name);
 		text1 = text1.replace("{2}", trackingId);
 		messageTemplate = messageTemplate.replace("$RECEIVER", number);
@@ -231,7 +231,7 @@ public class Function {
 
 	}
 
-	private static WelcomeMessage getWelcomeMessage(final ExecutionContext context) throws Exception {
+	private static WelcomeMessage getWelcomeMessage(String lang, final ExecutionContext context) throws Exception {
 
 		String jsonPayload = "";
 		context.getLogger().info("start getWelcomeMessage:");
@@ -239,7 +239,7 @@ public class Function {
 		try {
 			
 			URL url = new URL(
-					"https://whatsappchatbot-content-service.azurewebsites.net/dialogs?language=en&dialogId=welcome");
+					"https://whatsappchatbot-content-service.azurewebsites.net/dialogs?language=" + lang + "&dialogId=welcome");
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 			conn.setDoOutput(true);
 			conn.setRequestMethod("GET");
