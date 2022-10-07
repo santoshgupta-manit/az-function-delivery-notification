@@ -1,10 +1,12 @@
 package com.fedex.delivery.notification;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.cert.X509Certificate;
@@ -68,7 +70,7 @@ public class Function {
 
 		context.getLogger().info("Java HTTP trigger processed a request.");
 
-		System.out.println(System.getenv("WHATSAPP_TOKEN"));
+		context.getLogger().info(System.getenv("WHATSAPP_TOKEN"));
 		// Parse query parameter
 		final String whtsappno = request.getQueryParameters().get("whtsappno");
 		final String name = request.getQueryParameters().get("name");
@@ -108,8 +110,12 @@ public class Function {
 		// object
 		initialize();
 
-		String messageTemplate = Files
-				.readString(Paths.get("src/main/java/com/fedex/delivery/notification/message_template.json"));
+		String messageTemplate = readFile("src/main/java/com/fedex/delivery/notification/message_template.json",
+				Charset.defaultCharset());
+		
+
+//		String messageTemplate = Files
+//				.readString(Paths.get("src/main/java/com/fedex/delivery/notification/message_template.json"));
 
 		WelcomeMessage welcomeMessage = getWelcomeMessage(lang, context);
 		String text1 = welcomeMessage.getWelcomeMessage().replace("{1}", name);
@@ -120,7 +126,7 @@ public class Function {
 		messageTemplate = messageTemplate.replace("$TRACKING_NBR", trackingId);
 		messageTemplate = messageTemplate.replace("$LANG", lang);
 
-		System.out.println(messageTemplate);
+		context.getLogger().info(messageTemplate);
 
 		context.getLogger().info("Inside buildMessage");
 //    	String jsonPayload = new StringBuilder()
@@ -150,6 +156,11 @@ public class Function {
 		context.getLogger().info("jsonPayload {} " + messageTemplate);
 
 		return messageTemplate;
+	}
+
+	static String readFile(String path, Charset encoding) throws IOException {
+		byte[] encoded = Files.readAllBytes(Paths.get(path));
+		return new String(encoded, encoding);
 	}
 
 	private static void initialize() {
@@ -195,8 +206,8 @@ public class Function {
 			throws Exception {
 
 		context.getLogger().info("start sendMessage:");
-		System.out.println(urlstring);
-		System.out.println(accessToken);
+		context.getLogger().info(urlstring);
+		context.getLogger().info(accessToken);
 		try {
 			URL url = new URL(urlstring);
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -237,9 +248,9 @@ public class Function {
 		context.getLogger().info("start getWelcomeMessage:");
 		WelcomeMessage welcomeMessage = new WelcomeMessage();
 		try {
-			
-			URL url = new URL(
-					"https://whatsappchatbot-content-service.azurewebsites.net/dialogs?language=" + lang + "&dialogId=welcome");
+
+			URL url = new URL("https://whatsappchatbot-content-service.azurewebsites.net/dialogs?language=" + lang
+					+ "&dialogId=welcome");
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 			conn.setDoOutput(true);
 			conn.setRequestMethod("GET");
