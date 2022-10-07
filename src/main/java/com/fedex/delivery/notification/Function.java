@@ -56,7 +56,7 @@ public class Function {
 	 * This function listens at endpoint "/api/HttpExample". Two ways to invoke it
 	 * using "curl" command in bash: 1. curl -d "HTTP Body" {your
 	 * host}/api/HttpExample 2. curl "{your host}/api/HttpExample?name=HTTP%20Query"
-	 * test
+	 * 
 	 * @throws Exception
 	 */
 	private final String CLIENT_SECRET = System.getenv("WHATSAPP_TOKEN");
@@ -110,10 +110,10 @@ public class Function {
 		// object
 		initialize();
 
-		String messageTemplate = readFile("src/main/java/com/fedex/delivery/notification/message_template.json",
+		String messageTemplate = readFile("src/main/resources/message_template.json",
 				Charset.defaultCharset());
 		
-
+		context.getLogger().info(messageTemplate);
 //		String messageTemplate = Files
 //				.readString(Paths.get("src/main/java/com/fedex/delivery/notification/message_template.json"));
 
