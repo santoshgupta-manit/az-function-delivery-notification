@@ -1,0 +1,28 @@
+{
+	"messaging_product": "whatsapp",
+	"to": "$RECEIVER",
+	"type": "interactive",
+	"interactive": {
+		"type": "button",
+		"header": {
+			"type": "image",
+			"image": {
+				"link": "https://logos-download.com/wp-content/uploads/2016/06/FedEx_Express_logo_violet.png"
+			}
+		},
+		"body": {
+			"text": "$TEXT1"
+		},
+		"action": {
+			"buttons": [
+				{
+					"type": "reply",
+					"reply": {
+						"id": "$TRACKING_NBR:$LANG",
+						"title": "$TEXT2"
+					}
+				}
+			]
+		}
+	}
+}
