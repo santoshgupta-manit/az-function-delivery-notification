@@ -5,10 +5,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -110,9 +109,8 @@ public class Function {
 		// object
 		initialize();
 
-		String messageTemplate = readFile("src/main/resources/message_template.json",
-				Charset.defaultCharset());
-		
+		String messageTemplate = readFile("main/resources/message_template.json", Charset.defaultCharset());
+
 		context.getLogger().info(messageTemplate);
 //		String messageTemplate = Files
 //				.readString(Paths.get("src/main/java/com/fedex/delivery/notification/message_template.json"));
@@ -158,9 +156,23 @@ public class Function {
 		return messageTemplate;
 	}
 
-	static String readFile(String path, Charset encoding) throws IOException {
-		byte[] encoded = Files.readAllBytes(Paths.get(path));
-		return new String(encoded, encoding);
+	static String readFile(String path, Charset encoding) throws IOException, URISyntaxException {
+
+//		byte[] encoded = Files.readAllBytes(Paths.get(Function.class.getResource(path).toURI()));
+//		return new String(encoded, encoding);
+//		
+		String fileContents = "{\r\n" + "	\"messaging_product\": \"whatsapp\",\r\n" + "	\"to\": \"$RECEIVER\",\r\n"
+				+ "	\"type\": \"interactive\",\r\n" + "	\"interactive\": {\r\n" + "		\"type\": \"button\",\r\n"
+				+ "		\"header\": {\r\n" + "			\"type\": \"image\",\r\n" + "			\"image\": {\r\n"
+				+ "				\"link\": \"https://logos-download.com/wp-content/uploads/2016/06/FedEx_Express_logo_violet.png\"\r\n"
+				+ "			}\r\n" + "		},\r\n" + "		\"body\": {\r\n" + "			\"text\": \"$TEXT1\"\r\n"
+				+ "		},\r\n" + "		\"action\": {\r\n" + "			\"buttons\": [\r\n" + "				{\r\n"
+				+ "					\"type\": \"reply\",\r\n" + "					\"reply\": {\r\n"
+				+ "						\"id\": \"$TRACKING_NBR:$LANG\",\r\n"
+				+ "						\"title\": \"$TEXT2\"\r\n" + "					}\r\n" + "				}\r\n"
+				+ "			]\r\n" + "		}\r\n" + "	}\r\n" + "}";
+
+		return fileContents;
 	}
 
 	private static void initialize() {
@@ -244,59 +256,114 @@ public class Function {
 
 	private static WelcomeMessage getWelcomeMessage(String lang, final ExecutionContext context) throws Exception {
 
-		String jsonPayload = "";
 		context.getLogger().info("start getWelcomeMessage:");
 		WelcomeMessage welcomeMessage = new WelcomeMessage();
-		try {
+		StringBuilder response = new StringBuilder();
 
-			URL url = new URL("https://whatsappchatbot-content-service.azurewebsites.net/dialogs?language=" + lang
-					+ "&dialogId=welcome");
-			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-			conn.setDoOutput(true);
-			conn.setRequestMethod("GET");
-			conn.setRequestProperty("Content-Type", "application/json");
+		String url = "https://whatsappchatbot-content-service.azurewebsites.net/dialogs?language="+lang+"&dialogId=welcome";
 
-			OutputStream os = conn.getOutputStream();
-			os.write(jsonPayload.getBytes());
-			os.flush();
-			os.close();
+		HttpURLConnection httpClient = (HttpURLConnection) new URL(url).openConnection();
 
-			int statusCode = conn.getResponseCode();
-			context.getLogger().info("Response from Content Service: \n");
-			context.getLogger().info("Status Code: " + statusCode);
-			BufferedReader br = new BufferedReader(
-					new InputStreamReader((statusCode == 200) ? conn.getInputStream() : conn.getErrorStream()));
-			String output;
-			while ((output = br.readLine()) != null) {
-				context.getLogger().info(output);
+		// optional default is GET
+		httpClient.setRequestMethod("GET");
+
+		// add request header
+		httpClient.setRequestProperty("Content-Type", "application/json");
+
+		int responseCode = httpClient.getResponseCode();
+		System.out.println("\nSending 'GET' request to URL : " + url);
+		System.out.println("Response Code : " + responseCode);
+
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(httpClient.getInputStream()))) {
+
+			String line;
+
+			while ((line = in.readLine()) != null) {
+				response.append(line);
 			}
-			conn.disconnect();
 
-			if (statusCode == 200) {
+			// print result
+			System.out.println(response.toString());
 
-				JSONArray arr = new JSONArray(output);
-				try {
-					JSONObject dialog = arr.getJSONObject(0);
-					JSONArray dialogTexts = (JSONArray) dialog.getJSONArray("dialogTexts");
-					String message = (String) dialogTexts.getJSONObject(0).get("dialogText");
-					String buttonText = (String) dialogTexts.getJSONObject(1).get("dialogText");
-					welcomeMessage.setWelcomeMessage(message);
-					welcomeMessage.setButtonText(buttonText);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
-				return welcomeMessage;
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			context.getLogger().log(Level.SEVERE, "Error occured", e.getStackTrace());
 		}
+
+		if (responseCode == 200) {
+			JSONArray arr = new JSONArray(response.toString());
+			try {
+				JSONObject dialog = arr.getJSONObject(0);
+				JSONArray dialogTexts = (JSONArray) dialog.getJSONArray("dialogTexts");
+				String message = (String) dialogTexts.getJSONObject(0).get("dialogText");
+				String buttonText = (String) dialogTexts.getJSONObject(1).get("dialogText");
+				welcomeMessage.setWelcomeMessage(message);
+				welcomeMessage.setButtonText(buttonText);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			return welcomeMessage;
+		}
+
 		context.getLogger().info("end getWelcomeMessage");
 
 		return welcomeMessage;
 
 	}
+
+	/*
+	 * private static WelcomeMessage getWelcomeMessage(String lang, final
+	 * ExecutionContext context) throws Exception {
+	 * 
+	 * String jsonPayload = "";
+	 * context.getLogger().info("start getWelcomeMessage:");
+	 * context.getLogger().info("start getWelcomeMessage:"); WelcomeMessage
+	 * welcomeMessage = new WelcomeMessage(); try {
+	 * 
+	 * String urlString =
+	 * "https://whatsappchatbot-content-service.azurewebsites.net/dialogs"; String
+	 * charset = "UTF-8"; // Or in Java 7 and later, use the constant:
+	 * java.nio.charset.StandardCharsets.UTF_8.name() String param1 = lang; String
+	 * param2 = "welcome"; // ...
+	 * 
+	 * String query = String.format("language=%s&dialogId=%s",
+	 * URLEncoder.encode(param1, charset), URLEncoder.encode(param2, charset));
+	 * 
+	 * context.getLogger().info(urlString + "?" + query); //String urlString =
+	 * "https://whatsappchatbot-content-service.azurewebsites.net/dialogs?language=en&dialogId=welcome";
+	 * URL url = new URL(urlString + "?" + query); HttpURLConnection conn =
+	 * (HttpURLConnection) url.openConnection(); conn.setDoOutput(true);
+	 * conn.setRequestMethod("GET"); conn.setRequestProperty("Content-Type",
+	 * "application/json");
+	 * 
+	 * OutputStream os = conn.getOutputStream(); os.write(jsonPayload.getBytes());
+	 * os.flush(); os.close();
+	 * 
+	 * int statusCode = conn.getResponseCode();
+	 * context.getLogger().info("Response from Content Service: \n");
+	 * context.getLogger().info("Status Code: " + statusCode); BufferedReader br =
+	 * new BufferedReader( new InputStreamReader((statusCode == 200) ?
+	 * conn.getInputStream() : conn.getErrorStream())); String output; while
+	 * ((output = br.readLine()) != null) { context.getLogger().info(output); }
+	 * conn.disconnect();
+	 * 
+	 * if (statusCode == 200) {
+	 * 
+	 * JSONArray arr = new JSONArray(output); try { JSONObject dialog =
+	 * arr.getJSONObject(0); JSONArray dialogTexts = (JSONArray)
+	 * dialog.getJSONArray("dialogTexts"); String message = (String)
+	 * dialogTexts.getJSONObject(0).get("dialogText"); String buttonText = (String)
+	 * dialogTexts.getJSONObject(1).get("dialogText");
+	 * welcomeMessage.setWelcomeMessage(message);
+	 * welcomeMessage.setButtonText(buttonText); } catch (Exception e) { // TODO
+	 * Auto-generated catch block e.printStackTrace(); }
+	 * 
+	 * return welcomeMessage; } } catch (Exception e) { e.printStackTrace();
+	 * context.getLogger().log(Level.SEVERE, "Error occured", e.getStackTrace()); }
+	 * context.getLogger().info("end getWelcomeMessage");
+	 * 
+	 * return welcomeMessage;
+	 * 
+	 * }
+	 */
 
 }
